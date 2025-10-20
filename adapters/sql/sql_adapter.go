@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"log"
-	"github.com/ormies/ormies/adapters"
+
+	"github.com/oxmies/oxmies/adapters"
 )
 
 type SQLAdapter struct {
@@ -42,8 +43,12 @@ func (a *SQLAdapter) Update(ctx context.Context, model interface{}) error {
 
 func (a *SQLAdapter) FindByID(ctx context.Context, model interface{}, id any) error {
 	query := buildSelectByIDQuery(model)
-	row := a.DB.QueryRowContext(ctx, query, id)
-	return scanRow(row, model)
+	rows, err := a.DB.QueryContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	return scanRow(rows, model)
 }
 
 func (a *SQLAdapter) Delete(ctx context.Context, model interface{}) error {
@@ -53,4 +58,9 @@ func (a *SQLAdapter) Delete(ctx context.Context, model interface{}) error {
 	}
 	_, err := a.DB.ExecContext(ctx, query, args...)
 	return err
+}
+
+// AdapterType returns the adapter type for this adapter
+func (a *SQLAdapter) AdapterType() adapters.AdapterType {
+	return adapters.SQL
 }

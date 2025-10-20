@@ -1,6 +1,8 @@
 package sqladapter
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -107,7 +109,107 @@ func buildDeleteQuery(model interface{}) (string, []interface{}) {
 
 // scanRow maps sql.Row to struct fields (simple version)
 func scanRow(row interface{}, model interface{}) error {
-	// This needs sql.Row type; leave for SQLAdapter implementation
+	// Accept either *sql.Rows (from QueryContext) or *sql.Row
+	rv := reflect.ValueOf(model)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return errors.New("scanRow: model must be a non-nil pointer to struct")
+	}
+	rv = rv.Elem()
+	if rv.Kind() != reflect.Struct {
+		return errors.New("scanRow: model must point to a struct")
+	}
+
+	// We'll use sql.Rows to get column names and values
+	var rows *sql.Rows
+	switch r := row.(type) {
+	case *sql.Rows:
+		rows = r
+	case *sql.Row:
+		// sql.Row doesn't expose Columns; convert by querying a single row via Rows
+		// but sql.Row can't be type asserted easily; fallthrough to error
+		return errors.New("scanRow: *sql.Row is not supported; use QueryContext to pass *sql.Rows")
+	default:
+		return errors.New("scanRow: unsupported row type")
+	}
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		return sql.ErrNoRows
+	}
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+
+	// Prepare a slice of interfaces to scan into
+	vals := make([]interface{}, len(cols))
+	for i := range vals {
+		var v interface{}
+		vals[i] = &v
+	}
+
+	if err := rows.Scan(vals...); err != nil {
+		return err
+	}
+
+	// Map column values to struct fields by column tag or field name
+	colToVal := make(map[string]interface{})
+	for i, c := range cols {
+		// dereference scanned pointer
+		vptr := vals[i].(*interface{})
+		colToVal[c] = *vptr
+	}
+
+	typ := rv.Type()
+	for i := 0; i < rv.NumField(); i++ {
+		field := typ.Field(i)
+		// ignore unexported fields
+		if field.PkgPath != "" {
+			continue
+		}
+		col := getColumnName(field)
+		// try lowercase and original name variants
+		if val, ok := colToVal[col]; ok {
+			fv := rv.Field(i)
+			if fv.CanSet() {
+				v := reflect.ValueOf(val)
+				if v.IsValid() {
+					// handle nil database NULL
+					if v.Kind() == reflect.Interface && v.IsNil() {
+						// leave zero value
+						continue
+					}
+					// attempt conversion
+					if v.Type().AssignableTo(fv.Type()) {
+						fv.Set(v)
+					} else if v.Type().ConvertibleTo(fv.Type()) {
+						fv.Set(v.Convert(fv.Type()))
+					} else {
+						// best-effort: try set via string when possible
+						if s, ok := val.(string); ok {
+							if fv.Kind() == reflect.String {
+								fv.SetString(s)
+							}
+						}
+					}
+				}
+			}
+		} else if val, ok := colToVal[strings.ToLower(col)]; ok {
+			fv := rv.Field(i)
+			if fv.CanSet() {
+				v := reflect.ValueOf(val)
+				if v.IsValid() && v.Type().AssignableTo(fv.Type()) {
+					fv.Set(v)
+				} else if v.IsValid() && v.Type().ConvertibleTo(fv.Type()) {
+					fv.Set(v.Convert(fv.Type()))
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
