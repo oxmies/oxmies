@@ -1,4 +1,4 @@
-package ormies
+package oxmies
 
 import (
 	"fmt"
@@ -10,15 +10,16 @@ import (
 // SQL Configuration
 // -----------------------------
 type SQLConfig struct {
-	Driver   string            // "postgres", "mysql", etc.
-	User     string
-	Password string
-	Host     string
-	Port     int
-	DBName   string
-	SSLMode  string            // Optional: Postgres only
-	Params   map[string]string // Extra query parameters
-	Debug    bool              // Enable SQL logging
+	OxmiesDbConfig        // Embedding common DB config
+	Driver         string // "postgres", "mysql", etc.
+	User           string
+	Password       string
+	Host           string
+	Port           int
+	DBName         string
+	SSLMode        string            // Optional: Postgres only
+	Params         map[string]string // Extra query parameters
+	Debug          bool              // Enable SQL logging
 }
 
 // DSN builds the connection string automatically
@@ -66,13 +67,23 @@ func (c SQLConfig) DSN() string {
 // MongoDB Configuration
 // -----------------------------
 type MongoConfig struct {
-	URI      string // e.g., "mongodb://localhost:27017"
-	Database string // Database name
+	OxmiesDbConfig        // Embedding common DB config
+	URI            string // e.g., "mongodb://localhost:27017"
+	Database       string // Database name
 }
 
 // -----------------------------
 // Redis Configuration
 // -----------------------------
 type RedisConfig struct {
-	URI string // e.g., "redis://localhost:6379"
+	OxmiesDbConfig        // Embedding common DB config
+	URI            string // e.g., "redis://localhost:6379"
+}
+
+// -----------------------------
+// Common DB Configuration
+// -----------------------------
+
+type OxmiesDbConfig struct {
+	Models []any
 }

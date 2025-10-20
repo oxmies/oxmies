@@ -1,10 +1,10 @@
-# 🐣 Ormies
+# 🧠 Oxmies — The Universal Object Mapper for Go
 
-> The friendly little ORMs for all your databases 💚
+Oxmies is a modern, extensible Go library that unifies **ORM**, **ODM**, and **OHM** patterns into a single, cohesive interface.  
+It allows you to define your data models once and interact seamlessly with **SQL**, **NoSQL**, or **in-memory** databases — all using the same API.
 
-🧱 Structs → SQL / NoSQL  
-⚡️ Auto-injected DB adapters  
-🧠 Reflection-powered CRUD  
-🌈 Works with Postgres, MySQL, MongoDB, Redis
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+### ⚙️ Supported Backends
+- 🐘 PostgreSQL / MySQL (ORM)
+- 🍃 MongoDB (ODM)
+- 🔥 Redis (OHM)
+- More coming soon…
